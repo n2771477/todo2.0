@@ -1,195 +1,141 @@
-import React from 'react';
-import { useContext, useState, useEffect, useRef } from 'react';
-import { Table, Input, Button, Popconfirm, Form } from 'antd';
-const EditableContext = React.createContext<any>();
-interface Item {
-  key: string;
-  name: string;
-  age: string;
-  address: string;
+import React, { useState } from 'react';
+import { Table, Input, InputNumber, Popconfirm, Form } from 'antd';
+const originData = [];
+
+for (let i = 0; i < 100; i++) {
+  originData.push({
+    key: i.toString(),
+    name: `Edrward ${i}`,
+    age: 32,
+    address: `London Park no. ${i}`,
+  });
 }
 
-interface EditableRowProps {
-  index: number;
-}
-const EditableRow: React.FC<EditableRowProps> = ({ index, ...props }) => {
-  const [form] = Form.useForm();
-  return (
-    <Form form={form} component={false}>
-      <EditableContext.Provider value={form}>
-        <tr {...props} />
-      </EditableContext.Provider>
-    </Form>
-  );
-};
-interface EditableCellProps {
-  title: React.ReactNode;
-  editable: boolean;
-  children: React.ReactNode;
-  dataIndex: string;
-  record: Item;
-  handleSave: (record: Item) => void;
-}
-const EditableCell: React.FC<EditableCellProps> = ({
-  title,
-  editable,
-  children,
+const EditableCell = ({
+  editing,
   dataIndex,
+  title,
+  inputType,
   record,
-  handleSave,
+  index,
+  children,
   ...restProps
 }) => {
-  const [editing, setEditing] = useState(false);
-  const inputRef = useRef();
-  const form = useContext(EditableContext);
-  useEffect(() => {
-    if (editing) {
-      inputRef.current.focus();
-    }
-  }, [editing]);
-
-  const toggleEdit = () => {
-    setEditing(!editing);
-    form.setFieldsValue({
-      [dataIndex]: record[dataIndex],
-    });
-  };
-
-  const save = async (e) => {
-    try {
-      const values = await form.validateFields();
-      toggleEdit();
-      handleSave({ ...record, ...values });
-    } catch (errInfo) {
-      console.log('Save failed:', errInfo);
-    }
-  };
-
-  let childNode = children;
-
-  if (editable) {
-    childNode = editing ? (
-      <Form.Item
-        style={{
-          margin: 0,
-        }}
-        name={dataIndex}
-        rules={[
-          {
-            required: true,
-            message: `${title} is required.`,
-          },
-        ]}
-      >
-        <Input ref={inputRef} onPressEnter={save} onBlur={save} />
-      </Form.Item>
-    ) : (
-      <div
-        className="editable-cell-value-wrap"
-        style={{
-          paddingRight: 24,
-        }}
-        onClick={toggleEdit}
-      >
-        {children}
-      </div>
-    );
-  }
-
-  return <td {...restProps}>{childNode}</td>;
+  const inputNode = inputType === 'number' ? <InputNumber /> : <Input />;
+  return (
+    <td {...restProps}>
+      {editing ? (
+        <Form.Item
+          name={dataIndex}
+          style={{
+            margin: 0,
+          }}
+          rules={[
+            {
+              required: true,
+              message: `Please Input ${title}!`,
+            },
+          ]}
+        >
+          {inputNode}
+        </Form.Item>
+      ) : (
+        children
+      )}
+    </td>
+  );
 };
 
-export const EditableTable = () => {
-  const columns1 = [
+const EditableTable = () => {
+  const [form] = Form.useForm();
+  const [data, setData] = useState(originData);
+  const [editingKey, setEditingKey] = useState('');
+
+  const isEditing = (record) => record.key === editingKey;
+
+  const edit = (record) => {
+    form.setFieldsValue({
+      name: '',
+      age: '',
+      address: '',
+      ...record,
+    });
+    setEditingKey(record.key);
+  };
+
+  const cancel = () => {
+    setEditingKey('');
+  };
+
+  const save = async (key) => {
+    try {
+      const row = await form.validateFields();
+      const newData = [...data];
+      const index = newData.findIndex((item) => key === item.key);
+
+      if (index > -1) {
+        const item = newData[index];
+        newData.splice(index, 1, { ...item, ...row });
+        setData(newData);
+        setEditingKey('');
+      } else {
+        newData.push(row);
+        setData(newData);
+        setEditingKey('');
+      }
+    } catch (errInfo) {
+      console.log('Validate Failed:', errInfo);
+    }
+  };
+
+  const columns = [
     {
       title: 'name',
       dataIndex: 'name',
-      width: '40%',
+      width: '25%',
       editable: true,
     },
     {
       title: 'age',
       dataIndex: 'age',
-      align: 'center',
+      width: '15%',
+      editable: true,
     },
     {
       title: 'address',
       dataIndex: 'address',
-      align: 'center',
+      width: '40%',
+      editable: true,
     },
     {
-      align: 'center',
       title: 'operation',
       dataIndex: 'operation',
-      render: (text, record) => {
-        return state.dataSource.length >= 1 ? (
-          <Popconfirm
-            title="确定要删除此任务吗?"
-            okText="确定"
-            cancelText="取消"
-            onConfirm={() => handleDelete(record.key)}
-          >
-            <a>删除</a>
-          </Popconfirm>
-        ) : null;
+      render: (_, record) => {
+        const editable = isEditing(record);
+        return editable ? (
+          <span>
+            <a
+              href="javascript:;"
+              onClick={() => save(record.key)}
+              style={{
+                marginRight: 8,
+              }}
+            >
+              Save
+            </a>
+            <Popconfirm title="Sure to cancel?" onConfirm={cancel}>
+              <a>Cancel</a>
+            </Popconfirm>
+          </span>
+        ) : (
+          <a disabled={editingKey !== ''} onClick={() => edit(record)}>
+            Edit
+          </a>
+        );
       },
     },
   ];
-  const state = {
-    dataSource: [
-      {
-        key: '0',
-        name: 'Edward King 0',
-        age: '32',
-        address: 'London, Park Lane no. 0',
-      },
-      {
-        key: '1',
-        name: 'Edward King 1',
-        age: '32',
-        address: 'London, Park Lane no. 1',
-      },
-    ],
-    count: 2,
-  };
-
-  const handleDelete = (key) => {
-    // const dataSource = [...this.state.dataSource];
-    // this.setState({
-    //   dataSource: dataSource.filter(item => item.key !== key),
-    // });
-  };
-  const handleAdd = () => {
-    // const { count, dataSource } = state;
-    // const newData = {
-    //   key: count,
-    //   name: `Edward King ${count}`,
-    //   age: 32,
-    //   address: `London, Park Lane no. ${count}`,
-    // };
-    // this.setState({
-    //   dataSource: [...dataSource, newData],
-    //   count: count + 1,
-    // });
-  };
-  const handleSave = (row) => {
-    // const newData = [...state.dataSource];
-    // const index = newData.findIndex(item => row.key === item.key);
-    // const item = newData[index];
-    // newData.splice(index, 1, { ...item, ...row });
-    // this.setState({
-    //   dataSource: newData,
-    // });
-  };
-
-  const { dataSource } = state;
-  const components = {
-    body: {
-      row: EditableRow,
-      cell: EditableCell,
-    },
-  };
-  const columns = columns1.map((col) => {
+  const mergedColumns = columns.map((col) => {
     if (!col.editable) {
       return col;
     }
@@ -198,32 +144,31 @@ export const EditableTable = () => {
       ...col,
       onCell: (record) => ({
         record,
-        editable: col.editable,
+        inputType: col.dataIndex === 'age' ? 'number' : 'text',
         dataIndex: col.dataIndex,
         title: col.title,
-        handleSave: handleSave,
+        editing: isEditing(record),
       }),
     };
   });
   return (
-    <div>
-      <Button
-        onClick={handleAdd}
-        type="primary"
-        style={{
-          marginBottom: 16,
-        }}
-      >
-        添加任务
-      </Button>
+    <Form form={form} component={false}>
       <Table
-        pagination={false}
-        components={components}
-        rowClassName={() => 'editable-row'}
+        components={{
+          body: {
+            cell: EditableCell,
+          },
+        }}
         bordered
-        dataSource={dataSource}
-        columns={columns}
+        dataSource={data}
+        columns={mergedColumns}
+        rowClassName="editable-row"
+        pagination={{
+          onChange: cancel,
+        }}
       />
-    </div>
+    </Form>
   );
 };
+export default EditableTable
+// ReactDOM.render(<EditableTable />, mountNode);

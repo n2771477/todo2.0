@@ -1,103 +1,119 @@
-import React from 'react';
-import { Table, Input, Button, Popconfirm } from 'antd';
-// import { TodoList } from './src/TodoList/TodoList';
-import { EditableTable } from './List';
-// const { Table } = antd;
+import React, { useContext, useState, useEffect, useRef } from 'react';
+import { Table, Input, Button, Popconfirm, Form } from 'antd';
+import { EditableCell, EditableRow } from './useFrom';
+import List from './NewList';
+import { useData } from './useData';
+import { ColumnsType } from 'antd/es/table';
+export default () => {
+  const {
+    state,
+    removeNote,
+    handleSave,
+    addNote,
+    handleDelete,
+    handleAdd,
+  } = useData();
+  // 标题部分
+  // const EditableListContext = React.createContext<string>('0');
 
-const columns = [
-  {
-    title: (
-      <Button
-        // onClick={this.handleAdd}
-        type="primary"
-        style={{
-          marginBottom: 0,
-          alignItems: 'center',
-        }}
-      >
-        添加标签
-      </Button>
-    ),
-    dataIndex: 'name',
-    key: 'name',
-    width: '500px',
-    align: 'center',
-    textAlign: 'center',
-  },
-
-  {
-    title: '操作',
-    dataIndex: '',
-    key: 'x',
-    render: () => (
-      <Popconfirm
-        title="确定要删除此标签吗?"
-        okText="确定"
-        cancelText="取消"
-        onConfirm={() => {
-          console.log('确认按钮');
-        }}
-      >
+  // interface User {
+  //   key: string;
+  //   name: string;
+  //   editable: boolean;
+  //   render?:Element
+  // }
+  const columns = [
+    {
+      title: (
         <Button
           type="primary"
-          // onClick={showPopconfirm}
+          onClick={() => {
+            addNote();
+          }}
         >
-          删除
+          添加便签
         </Button>
-      </Popconfirm>
-    ),
-  },
-];
+      ),
+      // editable: true,
+      dataIndex: 'name',
+      key: 'name',
+      width: '500px',
+      align: 'center',
+      textAlign: 'center',
+    },
 
-const data = [
-  {
-    key: 1,
-    name: 'John Brown',
-    age: 32,
-    address: 'New York No. 1 Lake Park',
-    description:
-      'My name is John Brown, I am 32 years old, living in New York No. 1 Lake Park.',
-  },
-  {
-    key: 2,
-    name: 'Jim Green',
-    age: 42,
-    address: 'London No. 1 Lake Park',
-    description:
-      'My name is Jim Green, I am 42 years old, living in London No. 1 Lake Park.',
-  },
-  {
-    key: 3,
-    name: 'Not Expandable22',
-    age: 29,
-    address: 'Jiangsu No. 1 Lake Park',
-    description: 'This not expandable',
-  },
-  {
-    key: 4,
-    name: 'Joe Black',
-    age: 32,
-    address: 'Sidney No. 1 Lake Park',
-    description:
-      'My name is Joe Black, I am 32 years old, living in Sidney No. 1 Lake Park.',
-  },
-];
-export default () => {
+    {
+      title: '操作',
+      dataIndex: 'operation',
+      key: 'operation',
+      render: (text: unknown, record: { key: number }) => (
+        <Popconfirm
+          title="确定要删除此标签吗?"
+          okText="确定"
+          cancelText="取消"
+          onConfirm={() => {
+            console.log(text, record.key);
+            removeNote(record.key);
+          }}
+        >
+          <Button
+            type="primary"
+            // onClick={showPopconfirm}
+          >
+            删除
+          </Button>
+        </Popconfirm>
+      ),
+    },
+  ];
+
+  const components = {
+    body: {
+      row: EditableRow,
+      cell: EditableCell,
+    },
+  };
+  const date = columns.map((col: any) => {
+    if (!col.editable) {
+      return col;
+    }
+    console.log(col.editable);
+    return {
+      ...col,
+      onCell: (record: unknown) => ({
+        record,
+        editable: col.editable,
+        dataIndex: col.dataIndex,
+        title: col.title,
+        handleSave,
+      }),
+    };
+  });
+  // console.log(data);
   return (
     <div>
       <Table
+        components={components}
         pagination={false}
-        columns={columns}
-        expandRowByClick={true}
+        rowClassName={() => 'editable-row1'}
+        columns={date}
+        //  expandRowByClick={start}
         expandable={{
           expandedRowRender: (record) => (
-            <EditableTable />
+            <List
+              state={record.description}
+              keyOne={record.key}
+              name={record.name}
+              handleDelete={handleDelete}
+              handleAdd={handleAdd}
+              handleSave={handleSave}
+            />
+
             // <Input style={{ margin: 0 }} placeholder="Basic usage" />
-            // <p style={{ margin: 0 }}>{record.description}</p>
+            // <p style={{ margin: 0 }}>11111</p>
           ),
-          // rowExpandable: record => record.name !== 'Not Expandable',
         }}
-        dataSource={data}
+        dataSource={state}
       />
     </div>
   );
